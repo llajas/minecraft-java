@@ -4,6 +4,7 @@
     packages: ['vim', 'wget', 'jdk-19-headless.aarch64']
     mcs_dir: /minecraft
     mcs_jar_url: https://piston-data.mojang.com/v1/objects/f69c284232d7c7580bd89a5a4931c3581eae1378/server.jar
+    fabric_jar_url: https://meta.fabricmc.net/v2/versions/loader/1.19.2/0.14.10/0.11.1/server/jar
     fedora_project_gpg: https://download-ib01.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9
     screen_rpm_url: https://download-ib01.fedoraproject.org/pub/epel/9/Everything/aarch64/Packages/s/screen-4.8.0-6.el9.aarch64.rpm
     session_name: survival
@@ -43,10 +44,15 @@
         group: opc
         mode: "0770"
 
-    - name: Wget mcserver jar
+    - name: Wget java fabric minecraft jar
       get_url:
-        url: '{{ mcs_jar_url }}'
+        url: '{{ fabric_jar_url }}'
         dest: '{{ mcs_dir }}/server.jar'
+
+    - name: install fabric modding api
+      command: java -jar server.jar server -mcversion 1.19.2 -downloadMinecraft
+      args:
+       chdir: '{{ mcs_dir }}'
 
     - name: Agree to EULA
       template: src=eula.tpl dest='{{ mcs_dir }}/eula.txt'
