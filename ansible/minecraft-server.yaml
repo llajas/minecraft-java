@@ -1,24 +1,68 @@
 ---
 - hosts: "mcservers"
-  vars: 
+  vars:
     packages: ['vim', 'wget', 'jdk-19-headless.aarch64']
     mcs_dir: /minecraft
-    mcs_jar_url: https://piston-data.mojang.com/v1/objects/f69c284232d7c7580bd89a5a4931c3581eae1378/server.jar
-    fabric_jar_url: https://meta.fabricmc.net/v2/versions/loader/1.19.2/0.14.10/0.11.1/server/jar
     fedora_project_gpg: https://download-ib01.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9
     screen_rpm_url: https://download-ib01.fedoraproject.org/pub/epel/9/Everything/aarch64/Packages/s/screen-4.8.0-6.el9.aarch64.rpm
     session_name: survival
+    gamemode: "{{ lookup('env', 'MC_GAMEMODE') | default('survival') }}"
+    level_name: "{{ lookup('env', 'MC_LEVEL_NAME') }}"
+    difficulty: "{{ lookup('env', 'MC_DIFFICULTY') | default('peaceful') }}"
+    pvp: "{{ lookup('env', 'MC_PVP') | default('true') }}"
 
   tasks:
+    # Fetch the latest Minecraft version (release)
+    - name: Fetch Minecraft version manifest
+      uri:
+        url: "https://launchermeta.mojang.com/mc/game/version_manifest.json"
+        return_content: yes
+      register: version_manifest
+
+    - name: Set game version
+      set_fact:
+        game_version: "{{ version_manifest.json.latest.release }}"
+      when: version_manifest is defined
+
+    # Fetch the latest Fabric installer version (stable)
+    - name: Fetch Fabric installer version
+      uri:
+        url: "https://meta.fabricmc.net/v2/versions/installer"
+        return_content: yes
+      register: fabric_installer_version_data
+
+    - name: Set installer version
+      set_fact:
+        installer_version: "{{ fabric_installer_version_data.json | selectattr('stable', 'equalto', true) | first | json_query('version') }}"
+
+    # Fetch the latest Fabric loader version for the game version (stable)
+    - name: Fetch Fabric loader version for game version
+      uri:
+        url: "https://meta.fabricmc.net/v2/versions/loader/{{ game_version }}"
+        return_content: yes
+      register: fabric_loader_version_data
+
+    - name: Set loader version
+      set_fact:
+        loader_version: "{{ fabric_loader_version_data.json | selectattr('loader.stable', 'equalto', true) | first | json_query('loader.version') }}"
+
+    # Construct the Fabric server jar URL
+    - name: Construct Fabric server jar URL
+      set_fact:
+        fabric_jar_url: "https://meta.fabricmc.net/v2/versions/loader/{{ game_version }}/{{ loader_version }}/{{ installer_version }}/server/jar"
+
+    # Update Package Manager
     - name: Update yum
       become: yes
       yum: update_cache=yes name='*' state=latest
 
-    - name: Get packages 
+    # install packages - java for minecraft, and wget to grab the URL's needed.
+    - name: Get packages
       become: yes
       yum: name={{ item }} state=latest
       with_items: "{{ packages }}"
-    
+
+    # Add the Fedora GPG Key to allow package installations
     - name: Import a key from a file
       become: yes
       ansible.builtin.rpm_key:
@@ -50,35 +94,63 @@
         dest: '{{ mcs_dir }}/server.jar'
 
     - name: install fabric modding api
-      command: java -jar server.jar server -mcversion 1.19.2 -downloadMinecraft
+      command: java -jar server.jar server -mcversion '{{ game_version }}' -downloadMinecraft
       args:
        chdir: '{{ mcs_dir }}'
 
+    - name: Retrieve players from Vault
+      set_fact:
+        ops_data: "{{ lookup('community.general.hashi_vault', 'secret=' + (lookup('env', 'MC_SECRET_PATH') | default('')) + ' token=' + (lookup('env', 'MC_VAULT_TOKEN') | default('')) + ' url=' + (lookup('env', 'MC_VAULT_URL') | default(''))).ops }}"
+    
+    - name: Create ops.json file
+      template:
+        src: ops.json.tpl
+        dest: "{{ mcs_dir }}/ops.json"
+      vars:
+        players: "{{ ops_data }}"
+    
+    - name: Create whitelist.json file
+      template:
+        src: whitelist.json.tpl
+        dest: "{{ mcs_dir }}/whitelist.json"
+      vars:
+        players: "{{ ops_data }}"
+
     - name: Agree to EULA
       template: src=eula.tpl dest='{{ mcs_dir }}/eula.txt'
-
+    
     - name: Set server properties file
       run_once: true
-      template: src=server.properties.tpl dest='{{ mcs_dir }}/server.properties'
-
-    - name: Set server whitelist file
-      run_once: true
-      template: src=whitelist.json.tpl dest='{{ mcs_dir }}/whitelist.json'
-
-    - name: Set server ops file
-      run_once: true
-      template: src=ops.json.tpl dest='{{ mcs_dir }}/ops.json'
-
-    - name: Check screen for running sessions
-      shell: screen -ls
+      template:
+        src: server.properties.tpl
+        dest: '{{ mcs_dir }}/server.properties'
+      vars:
+        level_seed: "{{ mc_level_seed }}"
+        gamemode: "{{ mc_gamemode }}"
+        level_name: "{{ mc_level_name }}"
+        difficulty: "{{ mc_difficulty }}"
+        pvp: "{{ mc_pvp }}"
+    
+    # Check and stop the Minecraft server if running
+    - name: Check if Minecraft server is running
+      shell: screen -ls | grep {{ session_name }}
       register: sessions
-      failed_when: sessions.rc == 0 or sessions.rc >= 2
-
+      ignore_errors: yes
+    
+    - name: Stop Minecraft server if running
+      shell: screen -S {{ session_name }} -p 0 -X stuff "/stop$(printf '\r')"
+      when: sessions.rc == 0
+    
+    # Pause for 5 seconds to allow the server to stop properly
+    - name: Pause for 5 seconds
+      pause:
+        seconds: 5
+    
+    # Start the Minecraft server with the latest update
     - name: Run mcserver
       command: screen -s {{ session_name }} -d -m java -Xmx4096M -Xms1024M -jar {{ mcs_dir }}/server.jar nogui
       args:
         chdir: '{{ mcs_dir }}'
-      when: sessions.stdout.find(session_name) == -1
 
     - name: Update Linux FW
       become: yes
