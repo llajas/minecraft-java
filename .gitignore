@@ -14,3 +14,4 @@ tf.out.json
 *.lock.hcl
 *.orig.tpl
 *.orig.tf
+ansible/inventories/*.yaml
