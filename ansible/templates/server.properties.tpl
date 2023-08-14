@@ -2,18 +2,18 @@
 #(timestamp of first initializing)
 enable-jmx-monitoring=false
 rcon.port=25575
-level-seed=
-gamemode=survival
+level-seed={{ level_seed }}
+gamemode={{ gamemode | default('survival') }}
 enable-command-block=false
 enable-query=false
 generator-settings={}
-level-name=
-motd=A Java Server
+level-name={{ level_name }}
+motd=A Secret Java Server
 query.port=25565
-pvp=true
+pvp={{ pvp | default('true') }}
 generate-structures=true
 max-chained-neighbor-updates=1000000
-difficulty=hard
+difficulty={{ difficulty | default('peaceful') }}
 network-compression-threshold=256
 require-resource-pack=false
 max-tick-time=60000
