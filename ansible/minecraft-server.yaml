@@ -133,18 +133,20 @@
     
     # Check and stop the Minecraft server if running
     - name: Check if Minecraft server is running
-      shell: screen -ls | grep {{ session_name }}
+      shell: screen -ls | grep {{ session_name }} || true
       register: sessions
-      ignore_errors: yes
+      failed_when: false
+      changed_when: false
     
     - name: Stop Minecraft server if running
       shell: screen -S {{ session_name }} -p 0 -X stuff "/stop$(printf '\r')"
-      when: sessions.rc == 0
+      when: "'{{ session_name }}' in sessions.stdout"
     
     # Pause for 5 seconds to allow the server to stop properly
     - name: Pause for 5 seconds
       pause:
         seconds: 5
+      when: "'{{ session_name }}' in sessions.stdout"
     
     # Start the Minecraft server with the latest update
     - name: Run mcserver
