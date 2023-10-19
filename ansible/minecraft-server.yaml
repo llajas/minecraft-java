@@ -150,7 +150,7 @@
     
     # Start the Minecraft server with the latest update
     - name: Run mcserver
-      command: screen -s {{ session_name }} -d -m java -Xmx4096M -Xms1024M -jar {{ mcs_dir }}/server.jar nogui
+      command: screen -S {{ session_name }} -d -m java -Xmx4096M -Xms1024M -jar {{ mcs_dir }}/server.jar nogui
       args:
         chdir: '{{ mcs_dir }}'
 
