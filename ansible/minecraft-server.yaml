@@ -133,6 +133,7 @@
     
     # Check and stop the Minecraft server if running
     - name: Check if Minecraft server is running
+<<<<<<< HEAD
       shell: screen -ls | grep {{ session_name }}
       register: sessions
       ignore_errors: yes
@@ -140,15 +141,29 @@
     - name: Stop Minecraft server if running
       shell: screen -S {{ session_name }} -p 0 -X stuff "/stop$(printf '\r')"
       when: sessions.rc == 0
+=======
+      shell: screen -ls | grep {{ session_name }} || true
+      register: sessions
+      failed_when: false
+      changed_when: false
+    
+    - name: Stop Minecraft server if running
+      shell: screen -S {{ session_name }} -p 0 -X stuff "/stop$(printf '\r')"
+      when: "'{{ session_name }}' in sessions.stdout"
+>>>>>>> origin/main
     
     # Pause for 5 seconds to allow the server to stop properly
     - name: Pause for 5 seconds
       pause:
         seconds: 5
+<<<<<<< HEAD
+=======
+      when: "'{{ session_name }}' in sessions.stdout"
+>>>>>>> origin/main
     
     # Start the Minecraft server with the latest update
     - name: Run mcserver
-      command: screen -s {{ session_name }} -d -m java -Xmx4096M -Xms1024M -jar {{ mcs_dir }}/server.jar nogui
+      command: screen -S {{ session_name }} -d -m java -Xmx4096M -Xms1024M -jar {{ mcs_dir }}/server.jar nogui
       args:
         chdir: '{{ mcs_dir }}'
 

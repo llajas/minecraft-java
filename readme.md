@@ -1,4 +1,4 @@
-A Java Minecraft server for Oracle Cloud to be used under their free tier. Infrastructure provisioned with Terraform and server setup via Ansible running on 'Oracle-Linux-9.0-aarch64-2022.08.17-0'
+A Java Minecraft server running the Fabric modding API for Oracle Cloud to be used under their free tier. Infrastructure provisioned with Terraform and server setup via Ansible running on 'Oracle-Linux-9.0-aarch64-2022.08.17-0'
 
 ## Terraform
 
@@ -16,6 +16,7 @@ Lastly, in 'provider', you'll want to declare the name of the workspace in use b
 
 With that in place, you'll be able to authenticate in via the OCI tool and start provisioning via Terraform where you'll receive the public IP of the cloud instance upon completion as an output to place into your '/etc/ansible/hosts' file under the 'mcservers' group tag. Feel free to save this IP as well in the event you device to point a domain name towards it.
 
+<<<<<<< HEAD
 ## Ansible
 
 This project uses Ansible to automate the setup and management of a Minecraft server. It includes a Ruby script to generate necessary templates and Ansible tasks for server control and configuration management.
@@ -26,6 +27,16 @@ This project uses Ansible to automate the setup and management of a Minecraft se
 - Server Management: Start, stop, and restart the Minecraft server using screen.
 - Whitelist Management: Automatically generate and update the whitelist.json file from Vault data.
 - Update Handling: Streamline updates to the Minecraft server. Each subsequent run will locate the latest available Java Minecraft and Fabric Modding API plugin versions to build a unique URL that will contain the latest stable release of Java with Fabric sideloaded into the server. No mods are included but this will give a great foundation to start adding mods to.
+=======
+Before proceeding, be sure to update 'server.properties.tpl' to your liking, else the server will have the following properties (https://minecraft.fandom.com/wiki/Server.properties):
+
+        -hard difficulty
+        -Survival mode 
+        -No seed
+        -white list enabled and enforced.
+
+'whitelist.json.tpl' can be updated using the UUID (https://minecraftuuid.com/) of your players along with their name. This also goes for 'ops.json.tpl' where server operator level can be added & adjusted between 1-4 (https://minecraft.fandom.com/wiki/Permission_level)
+>>>>>>> origin/main
 
 ### Prerequisites
 
